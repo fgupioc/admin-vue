@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\Controller;
 use App\User;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -17,7 +18,7 @@ class UserController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('api');
+        $this->middleware('auth:api');
     }
 
     /**
@@ -95,6 +96,34 @@ class UserController extends Controller
     public function destroy(User $user)
     {
         $user->delete();
+        return response()->json(["status" => 200], 200);
+    }
+
+    public function profile()
+    {
+        return response()->json(\Auth::user());
+    }
+
+    public function updateProdile(Request $request)
+    {
+        $user = \Auth::user();
+
+        $this->validate($request, [
+            "name" => 'required|string|max:191',
+            "email" => 'required|email|max:191|unique:users,email,' . $user->id,
+        ], [
+            "name.required" => "El campo nombre es obligatorio.",
+            "email.required" => "El campo correo es obligatorio.",
+        ]);
+
+        if ($request->photo !== $user->photo) {
+            $name = time() . "." . explode('/', explode(':', substr($request->photo, 0, strpos($request->photo, ';')))[1])[1];
+            \Image::make($request->photo)->save(public_path('img/profile/') . $name);
+
+            $request->request->add(["photo" => $name]);
+        }
+        $user->update($request->all());
+
         return response()->json(["status" => 200], 200);
     }
 }
